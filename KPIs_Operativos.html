@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minelink | Panel de Operativo</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            /* Paleta Corporativa Premium (Ferreyros y Chinalco) */
+            --color-blue: #002A5C;       
+            --color-yellow: #FFB300;     
+            --color-red: #D22630;        
+            --color-gray-dark: #475569;
+            --color-gray-light: #94A3B8;
+            --color-green: #10B981;      
+            
+            /* Fondos y Textos (Light Mode Industrial) */
+            --bg-body: #E5E7EB;          
+            --bg-sidebar: #F3F4F6;       
+            --text-main: #1F2937;
+            --text-muted: #64748B;
+            --border-color: #D1D5DB;
+
+            /* PLOMO UNIFICADO para barras vacías/En Progreso y Gauges */
+            --color-track: #CBD5E1; 
+            
+            /* Sombras */
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        
+        body { background-color: var(--bg-body); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; transition: background-color 0.3s, color 0.3s; }
+
+        /* --- SIDEBAR --- */
+        .sidebar { width: 80px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; padding: 1rem 0; z-index: 20; transition: background-color 0.3s, border-color 0.3s; }
+        .logo { width: 40px; height: 40px; background: var(--color-yellow); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #1F2937; margin-bottom: 2rem; font-size: 1.2rem; }
+        .nav-items { display: flex; flex-direction: column; gap: 1rem; width: 100%; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-decoration: none; padding: 0.5rem 0; font-size: 0.7rem; font-weight: 500; gap: 6px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.2s; text-align: center;}
+        .nav-item i { font-size: 1.2rem; }
+        .nav-item:hover { color: var(--color-blue); }
+        .nav-item.active { color: var(--text-main); border-left-color: var(--color-yellow); background: linear-gradient(90deg, rgba(255,179,0,0.15) 0%, rgba(255,255,255,0) 100%); }
+        .sidebar-bottom { margin-top: auto; padding-bottom: 1rem; }
+
+        /* --- MAIN LAYOUT --- */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+        
+        /* HEADER */
+        header { background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color); height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; flex-shrink: 0; transition: background-color 0.3s, border-color 0.3s; }
+        .header-left { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 1.1rem; }
+        .header-left i { color: var(--text-muted); margin-right: 5px; }
+        .header-left span { color: var(--text-muted); font-weight: 400; font-size: 1rem; }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .user-info { display: flex; align-items: center; gap: 10px; text-align: right; }
+        .user-name { font-weight: 600; font-size: 0.85rem; line-height: 1.2; }
+        .user-email { font-size: 0.75rem; color: var(--text-muted); }
+        .avatar { width: 36px; height: 36px; background: var(--color-yellow); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #1F2937; }
+
+        /* DASHBOARD SCROLL AREA & FILTROS GLOBALES */
+        .dashboard-scroll { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.5rem; }
+        
+        /* Contenedor de Header de Página (Título + Filtros) */
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .section-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 0; }
+        
+        /* Estilos de los Filtros */
+        .global-filters { display: flex; gap: 1.2rem; align-items: center; }
+        .filter-group { display: flex; align-items: center; gap: 0.6rem; }
+        .filter-group label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+        .filter-select { 
+            padding: 0.5rem 2.5rem 0.5rem 1rem; 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            font-size: 0.85rem; 
+            background-color: var(--bg-sidebar); 
+            color: var(--text-main); 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            box-shadow: var(--shadow-md); 
+            outline: none; 
+            font-weight: 500;
+        }
+        .filter-select:hover { border-color: var(--color-blue); }
+
+        /* --- CARDS & GRIDS --- */
+        .grid-kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; }
+        .kpi-card { 
+            border-radius: 8px; 
+            padding: 1.5rem; 
+            color: #FFFFFF; 
+            position: relative; 
+            overflow: hidden; 
+            box-shadow: var(--shadow-md); 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: center; 
+            text-shadow: 0 1px 3px rgba(0,0,0,0.3); 
+        }
+        .kpi-card .title { font-size: 0.85rem; font-weight: 500; opacity: 0.95; margin-bottom: 0.5rem; z-index: 2; }
+        .kpi-card .value { font-size: 2.2rem; font-weight: 700; z-index: 2; display: flex; align-items: baseline; gap: 5px; }
+        .kpi-card .unit { font-size: 1rem; font-weight: 500; opacity: 0.9; }
+        
+        .kpi-blue { background: linear-gradient(135deg, var(--color-blue), #004080); }
+        .kpi-yellow { background: linear-gradient(135deg, var(--color-yellow), #D97706); } 
+        .kpi-gray { background: linear-gradient(135deg, #475569, #1F2937); } 
+        .kpi-red { background: linear-gradient(135deg, var(--color-red), #E53935); }
+
+        .grid-charts-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        .grid-charts-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 1.5rem; }
+        
+        /* ESTILO FERREYROS PARA LAS TARJETAS DE GRÁFICOS */
+        .card { 
+            background: var(--bg-sidebar); 
+            border: 1px solid var(--border-color); 
+            border-top: 4px solid var(--color-yellow); 
+            border-radius: 8px; 
+            padding: 1.5rem; 
+            box-shadow: var(--shadow-md); 
+            display: flex; 
+            flex-direction: column; 
+            transition: background-color 0.3s, border-color 0.3s; 
+        }
+        .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text-main); margin-bottom: 1rem; }
+        .chart-wrapper { position: relative; flex: 1; min-height: 250px; width: 100%; display: flex; align-items: center; justify-content: center; }
+        
+        /* GAUGE SPECIFIC */
+        .gauge-container { position: relative; width: 100%; height: 160px; display: flex; align-items: flex-end; justify-content: center; }
+        .gauge-value { position: absolute; bottom: 10px; text-align: center; }
+        .gauge-value .num { font-size: 1.5rem; font-weight: 700; color: var(--color-blue); }
+        .gauge-value .unit { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+
+        /* --- TABLE --- */
+        .table-container { overflow-x: auto; width: 100%; }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.85rem; }
+        /* Ajuste de Padding para hacer la tabla compacta */
+        th { background: var(--bg-body); padding: 0.6rem 1rem; color: var(--text-muted); font-weight: 600; border-bottom: 1px solid var(--border-color); border-top: 1px solid var(--border-color); transition: background-color 0.3s; }
+        td { padding: 0.4rem 1rem; border-bottom: 1px solid var(--border-color); color: var(--text-main); font-weight: 500; transition: background-color 0.2s; vertical-align: middle; }
+        
+        /* Table sort & alerts & HOVER */
+        th.sortable { cursor: pointer; transition: color 0.2s; }
+        th.sortable:hover { color: var(--color-yellow); }
+        .cell-alert { background-color: #FF0000 !important; color: #FFFFFF !important; }
+        
+        tbody tr { transition: background-color 0.2s ease; }
+        tbody tr:hover td:not(.cell-alert) { background-color: rgba(255, 179, 0, 0.15) !important; } 
+        tbody tr:hover td.cell-alert { background-color: #E60000 !important; } 
+
+        /* --- TIMELINES & LEYENDAS --- */
+        .timeline-legend { display: flex; gap: 18px; margin-bottom: 1.5rem; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); justify-content: center; }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .legend-color { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid rgba(0,0,0,0.15); }
+
+        /* Colores Estandarizados (TUM y Palas) */
+        .c-mant { background-color: #FF0000; }   
+        .c-prog { background-color: var(--color-track); } 
+        .c-dem  { background-color: #CCCC00; }    
+        .c-res  { background-color: #0099CC; }    
+        .c-op   { background-color: #42DE2F; }     
+
+        .timeline-wrapper { display: flex; flex-direction: column; gap: 14px; }
+        .tl-machine-row { display: flex; align-items: center; gap: 1.5rem; }
+        .tl-machine-info { width: 130px; text-align: right; flex-shrink: 0; }
+        .tl-machine-id { font-weight: 700; font-size: 0.95rem; line-height: 1.2; color: var(--text-main); transition: color 0.3s;}
+        .tl-machine-class { font-size: 0.7rem; color: var(--text-muted); transition: color 0.3s;}
+        
+        .tl-bar { flex: 1; display: flex; height: 28px; border-radius: 4px; overflow: hidden; background-color: var(--border-color); cursor: crosshair; transition: background-color 0.3s; }
+        .tl-segment { height: 100%; transition: opacity 0.2s; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.03); }
+        .tl-segment:hover { opacity: 0.8; }
+
+        /* --- DARK MODE GLOBAL (NEGRO NEUTRO INDUSTRIAL) --- */
+        body.dark-mode {
+            --bg-body: #050505;        
+            --bg-sidebar: #121212;     
+            --text-main: #FFFFFF;      
+            --text-muted: #A3A3A3;     
+            --border-color: #2A2A2A;   
+            --color-blue: #3A82F6;  
+            --color-track: #334155;    
+        }
+        body.dark-mode .nav-item:hover { color: var(--text-main); }
+        body.dark-mode .gauge-value .num { color: var(--text-main); }
+        body.dark-mode .legend-color { border-color: transparent; }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="logo">M</div>
+        <div class="nav-items">
+            <a class="nav-item active"><i class="fa-solid fa-border-all"></i>KPIs Operativos</a>
+            <a class="nav-item"><i class="fa-regular fa-compass"></i>Tiempo Real</a>
+            <a class="nav-item"><i class="fa-solid fa-cube"></i>Modelos 3D</a>
+            <a class="nav-item"><i class="fa-solid fa-wrench"></i>Herramientas</a>
+            <a class="nav-item"><i class="fa-solid fa-gear"></i>Configuración</a>
+            <a class="nav-item"><i class="fa-solid fa-shield-halved"></i>Administración</a>
+            <a class="nav-item"><i class="fa-solid fa-heart-pulse"></i>Salud</a>
+            <a class="nav-item"><i class="fa-solid fa-box-open"></i>Simulación</a>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="nav-item" id="theme-toggle"><i class="fa-solid fa-toggle-off"></i><span>Light Mode</span></div>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <header>
+            <div class="header-left">
+                <i class="fa-solid fa-bars"></i>
+                MineLink <span>| KPIs Operativos</span>
+            </div>
+            <div class="header-right">
+                <i class="fa-regular fa-bell" style="font-size: 1.2rem; color: var(--text-muted);"></i>
+                <div class="user-info">
+                    <div>
+                        <div class="user-name">JhonDoe</div>
+                        <div class="user-email">m@example.com</div>
+                    </div>
+                    <div class="avatar"><i class="fa-solid fa-plus"></i></div>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-scroll">
+            
+            <div class="page-header">
+                <h1 class="section-title">KPIs Operativos</h1>
+                
+                <div class="global-filters">
+                    <div class="filter-group">
+                        <label for="filtroFlota">Flota:</label>
+                        <select id="filtroFlota" class="filter-select">
+                            <option value="all">Todas las Flotas</option>
+                            <option value="camiones">Camiones de Acarreo</option>
+                            <option value="palas">Palas Eléctricas</option>
+                            <option value="auxiliar">Equipo Auxiliar</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label for="filtroEquipo">Equipo:</label>
+                        <select id="filtroEquipo" class="filter-select">
+                            <option value="all">Todos los Equipos</option>
+                            <option value="cm410">CM410 (Komatsu 980E)</option>
+                            <option value="cm502">CM502 (CAT 798 AC)</option>
+                            <option value="pl001">PL001 (Pala 4100)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid-kpi">
+                <div class="kpi-card kpi-blue">
+                    <div class="title">Toneladas Totales</div>
+                    <div class="value">1,563.7 <span class="unit">Kt</span></div>
+                </div>
+                <div class="kpi-card kpi-yellow">
+                    <div class="title">Toneladas - Turno Actual</div>
+                    <div class="value">158.8 <span class="unit">Kt</span></div>
+                </div>
+                <div class="kpi-card kpi-gray">
+                    <div class="title">Toneladas - Turno Anterior</div>
+                    <div class="value">142.5 <span class="unit">Kt</span></div>
+                </div>
+                <div class="kpi-card kpi-red">
+                    <div class="title">Mineral a Chancadora</div>
+                    <div class="value">2.4 <span class="unit">Kt</span></div>
+                </div>
+            </div>
+
+            <div class="grid-charts-2">
+                <div class="card">
+                    <div class="card-title">Producción por Hora</div>
+                    <div class="chart-wrapper">
+                        <canvas id="prodChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title" style="margin-bottom: 0;">Línea de Tiempo de Camiones (TUM)</div>
+                    <div class="timeline-legend" style="margin-top: 0.5rem; margin-bottom: 0.5rem;">
+                        <div class="legend-item"><span class="legend-color c-mant"></span>Mantenimiento</div>
+                        <div class="legend-item"><span class="legend-color c-dem"></span>Demora</div>
+                        <div class="legend-item"><span class="legend-color c-res"></span>Reserva</div>
+                        <div class="legend-item"><span class="legend-color c-op"></span>Operativo</div>
+                    </div>
+                    <div class="chart-wrapper" style="min-height: 220px;">
+                        <canvas id="tumChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-charts-4">
+                <div class="card">
+                    <div class="card-title">Ciclo de Pala</div>
+                    <div class="chart-wrapper" style="min-height: 180px;">
+                        <canvas id="cycleChart"></canvas>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Hang</div>
+                    <div class="gauge-container">
+                        <canvas id="gaugeHang"></canvas>
+                        <div class="gauge-value"><div class="num">1.52</div><div class="unit">h</div></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Queue</div>
+                    <div class="gauge-container">
+                        <canvas id="gaugeQueue"></canvas>
+                        <div class="gauge-value"><div class="num">0.62</div><div class="unit">h</div></div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title">Productividad</div>
+                    <div class="gauge-container">
+                        <canvas id="gaugeProd"></canvas>
+                        <div class="gauge-value"><div class="num">9585.07</div><div class="unit">TPH</div></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-charts-2" style="margin-bottom: 2rem;">
+                <div class="card" style="padding: 0;">
+                    <div class="card-title" style="padding: 1.5rem 1.5rem 0.5rem;">KPIs (TUM)</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="sortable">Equipo <i class="fa-solid fa-sort" style="font-size: 0.7em; margin-left: 4px;"></i></th>
+                                    <th class="sortable" style="text-align: center;">Disponibilidad <i class="fa-solid fa-sort" style="font-size: 0.7em; margin-left: 4px;"></i></th>
+                                    <th class="sortable" style="text-align: center;">UoA <i class="fa-solid fa-sort" style="font-size: 0.7em; margin-left: 4px;"></i></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <div class="tl-machine-id">CD101</div>
+                                        <div class="tl-machine-class">Cargador LT 2350</div>
+                                    </td>
+                                    <td style="text-align: center;">92.82%</td>
+                                    <td style="text-align: center;">83.68%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="tl-machine-id">CD103</div>
+                                        <div class="tl-machine-class">Cargador LT 2350</div>
+                                    </td>
+                                    <td class="cell-alert" style="text-align: center;">96.31%</td>
+                                    <td style="text-align: center;">93.60%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="tl-machine-id">CD104</div>
+                                        <div class="tl-machine-class">Cargador LT 2350</div>
+                                    </td>
+                                    <td style="text-align: center;">100.00%</td>
+                                    <td style="text-align: center;">94.27%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="tl-machine-id">CD105</div>
+                                        <div class="tl-machine-class">Cargador LT 2350</div>
+                                    </td>
+                                    <td style="text-align: center;">100.00%</td>
+                                    <td class="cell-alert" style="text-align: center;">65.03%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="tl-machine-id">CD201</div>
+                                        <div class="tl-machine-class">Cargador CAT 992K</div>
+                                    </td>
+                                    <td class="cell-alert" style="text-align: center;">82.06%</td>
+                                    <td class="cell-alert" style="text-align: center;">93.20%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="tl-machine-id">PL001</div>
+                                        <div class="tl-machine-class">Pala CAT 7495</div>
+                                    </td>
+                                    <td class="cell-alert" style="text-align: center;">66.80%</td>
+                                    <td style="text-align: center;">89.46%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="tl-machine-id">PL002</div>
+                                        <div class="tl-machine-class">Pala CAT 7495</div>
+                                    </td>
+                                    <td class="cell-alert" style="text-align: center;">85.23%</td>
+                                    <td class="cell-alert" style="text-align: center;">67.89%</td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="tl-machine-id">PL003</div>
+                                        <div class="tl-machine-class">Pala CAT 7495</div>
+                                    </td>
+                                    <td style="text-align: center;">94.10%</td>
+                                    <td style="text-align: center;">91.05%</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">Línea de Tiempo de Palas (TUM)</div>
+                    
+                    <div class="timeline-legend">
+                        <div class="legend-item"><span class="legend-color c-mant"></span>Mantenimiento</div>
+                        <div class="legend-item"><span class="legend-color c-prog"></span>En Progreso</div>
+                        <div class="legend-item"><span class="legend-color c-dem"></span>Demora</div>
+                        <div class="legend-item"><span class="legend-color c-res"></span>Reserva</div>
+                        <div class="legend-item"><span class="legend-color c-op"></span>Operativo</div>
+                    </div>
+
+                    <div class="timeline-wrapper">
+                        <div class="tl-machine-row">
+                            <div class="tl-machine-info">
+                                <div class="tl-machine-id">CD101</div>
+                                <div class="tl-machine-class">Cargador LT 2350</div>
+                            </div>
+                            <div class="tl-bar">
+                                <div class="tl-segment c-mant" style="width: 88.9%;" title="Estado: Mantenimiento (Trabajo Neumaticos) | Duración: 10h 40m 12s"></div>
+                                <div class="tl-segment c-prog" style="width: 11.1%;" title="Estado: En Progreso | Duración: 1h 19m 46s"></div>
+                            </div>
+                        </div>
+
+                        <div class="tl-machine-row">
+                            <div class="tl-machine-info">
+                                <div class="tl-machine-id">CD103</div>
+                                <div class="tl-machine-class">Cargador LT 2350</div>
+                            </div>
+                            <div class="tl-bar">
+                                <div class="tl-segment c-dem" style="width: 7.1%;" title="Estado: Demora (Cambio Turno) | Duración: 51m 4s"></div>
+                                <div class="tl-segment c-res" style="width: 1.1%;" title="Estado: Reserva (Falta Volquetes) | Duración: 7m 39s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.7%;" title="Estado: Demora (Instrucciones) | Duración: 5m 3s"></div>
+                                <div class="tl-segment c-op" style="width: 7.4%;" title="Estado: Operativo | Duración: 53m 24s"></div>
+                                <div class="tl-segment c-dem" style="width: 4.0%;" title="Estado: Demora (Arreglo piso) | Duración: 29m 6s"></div>
+                                <div class="tl-segment c-op" style="width: 20.2%;" title="Estado: Operativo | Duración: 2h 25m 24s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.7%;" title="Estado: Demora (Cambio Operador) | Duración: 4m 49s"></div>
+                                <div class="tl-segment c-op" style="width: 13.2%;" title="Estado: Operativo | Duración: 1h 34m 46s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.4%;" title="Estado: Demora (Cambio Operador) | Duración: 2m 30s"></div>
+                                <div class="tl-segment c-op" style="width: 7.5%;" title="Estado: Operativo | Duración: 54m 3s"></div>
+                                <div class="tl-segment c-dem" style="width: 1.5%;" title="Estado: Demora (Combustible) | Duración: 10m 51s"></div>
+                                <div class="tl-segment c-op" style="width: 25.2%;" title="Estado: Operativo | Duración: 3h 1m 25s"></div>
+                                <div class="tl-segment c-prog" style="width: 11.1%;" title="Estado: En Progreso | Duración: 1h 19m 46s"></div>
+                            </div>
+                        </div>
+
+                        <div class="tl-machine-row">
+                            <div class="tl-machine-info">
+                                <div class="tl-machine-id">CD104</div>
+                                <div class="tl-machine-class">Cargador LT 2350</div>
+                            </div>
+                            <div class="tl-bar">
+                                <div class="tl-segment c-op" style="width: 1.4%;" title="Estado: Operativo | Duración: 10m 24s"></div>
+                                <div class="tl-segment c-dem" style="width: 4.7%;" title="Estado: Demora (Cambio Turno) | Duración: 33m 55s"></div>
+                                <div class="tl-segment c-mant" style="width: 6.4%;" title="Estado: Mantenimiento (Correctivo Neum.) | Duración: 45m 51s"></div>
+                                <div class="tl-segment c-op" style="width: 26.1%;" title="Estado: Operativo | Duración: 3h 8m 12s"></div>
+                                <div class="tl-segment c-dem" style="width: 1.7%;" title="Estado: Demora (Combustible) | Duración: 11m 58s"></div>
+                                <div class="tl-segment c-op" style="width: 7.4%;" title="Estado: Operativo | Duración: 53m 6s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.3%;" title="Estado: Demora (Cambio Operador) | Duración: 2m 4s"></div>
+                                <div class="tl-segment c-op" style="width: 40.9%;" title="Estado: Operativo | Duración: 4h 54m 30s"></div>
+                                <div class="tl-segment c-prog" style="width: 11.1%;" title="Estado: En Progreso | Duración: 1h 19m 46s"></div>
+                            </div>
+                        </div>
+
+                        <div class="tl-machine-row">
+                            <div class="tl-machine-info">
+                                <div class="tl-machine-id">CD105</div>
+                                <div class="tl-machine-class">Cargador LT 2350</div>
+                            </div>
+                            <div class="tl-bar">
+                                <div class="tl-segment c-op" style="width: 2.0%;" title="Estado: Operativo | Duración: 14m 25s"></div>
+                                <div class="tl-segment c-dem" style="width: 3.8%;" title="Estado: Demora (Cambio Turno) | Duración: 27m 36s"></div>
+                                <div class="tl-segment c-op" style="width: 0.2%;" title="Estado: Operativo | Duración: 1m 27s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.9%;" title="Estado: Demora (Movimiento Corto) | Duración: 6m 39s"></div>
+                                <div class="tl-segment c-mant" style="width: 1.1%;" title="Estado: Mantenimiento (Lubricacion) | Duración: 7m 37s"></div>
+                                <div class="tl-segment c-op" style="width: 27.6%;" title="Estado: Operativo | Duración: 3h 18m 33s"></div>
+                                <div class="tl-segment c-dem" style="width: 1.7%;" title="Estado: Demora (Combustible) | Duración: 12m 19s"></div>
+                                <div class="tl-segment c-op" style="width: 10.8%;" title="Estado: Operativo | Duración: 1h 17m 51s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.4%;" title="Estado: Demora (Cambio Operador) | Duración: 2m 33s"></div>
+                                <div class="tl-segment c-op" style="width: 8.6%;" title="Estado: Operativo | Duración: 1h 1m 37s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.6%;" title="Estado: Demora (Cambio Operador) | Duración: 4m 3s"></div>
+                                <div class="tl-segment c-op" style="width: 31.3%;" title="Estado: Operativo | Duración: 3h 45m 18s"></div>
+                                <div class="tl-segment c-prog" style="width: 11.1%;" title="Estado: En Progreso | Duración: 1h 19m 46s"></div>
+                            </div>
+                        </div>
+
+                        <div class="tl-machine-row">
+                            <div class="tl-machine-info">
+                                <div class="tl-machine-id">CD201</div>
+                                <div class="tl-machine-class">Cargador CAT 992K</div>
+                            </div>
+                            <div class="tl-bar">
+                                <div class="tl-segment c-dem" style="width: 8.3%;" title="Estado: Demora (Cambio Turno) | Duración: 59m 43s"></div>
+                                <div class="tl-segment c-op" style="width: 39.7%;" title="Estado: Operativo | Duración: 4h 45m 54s"></div>
+                                <div class="tl-segment c-dem" style="width: 9.3%;" title="Estado: Demora (Refrigerio) | Duración: 1h 6m 45s"></div>
+                                <div class="tl-segment c-op" style="width: 0.1%;" title="Estado: Operativo | Duración: 54s"></div>
+                                <div class="tl-segment c-dem" style="width: 5.0%;" title="Estado: Demora (Traslado Frente) | Duración: 36m 1s"></div>
+                                <div class="tl-segment c-op" style="width: 26.5%;" title="Estado: Operativo | Duración: 3h 10m 51s"></div>
+                                <div class="tl-segment c-prog" style="width: 11.1%;" title="Estado: En Progreso | Duración: 1h 19m 46s"></div>
+                            </div>
+                        </div>
+
+                        <div class="tl-machine-row">
+                            <div class="tl-machine-info">
+                                <div class="tl-machine-id">PL001</div>
+                                <div class="tl-machine-class">Pala CAT 7495</div>
+                            </div>
+                            <div class="tl-bar">
+                                <div class="tl-segment c-dem" style="width: 5.8%;" title="Estado: Demora (Cambio Turno) | Duración: 41m 36s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.9%;" title="Estado: Demora (Insp Operador) | Duración: 6m 10s"></div>
+                                <div class="tl-segment c-op" style="width: 6.4%;" title="Estado: Operativo | Duración: 46m 21s"></div>
+                                <div class="tl-segment c-mant" style="width: 1.7%;" title="Estado: Mantenimiento (Inspeccion) | Duración: 12m 18s"></div>
+                                <div class="tl-segment c-op" style="width: 4.3%;" title="Estado: Operativo | Duración: 30m 36s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.5%;" title="Estado: Demora (Movimiento Corto) | Duración: 3m 18s"></div>
+                                <div class="tl-segment c-op" style="width: 22.3%;" title="Estado: Operativo | Duración: 2h 40m 45s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.6%;" title="Estado: Demora (Cambio Operador) | Duración: 4m 6s"></div>
+                                <div class="tl-segment c-op" style="width: 10.5%;" title="Estado: Operativo | Duración: 1h 15m 18s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.5%;" title="Estado: Demora (Cambio Operador) | Duración: 3m 45s"></div>
+                                <div class="tl-segment c-op" style="width: 0.8%;" title="Estado: Operativo | Duración: 5m 43s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.7%;" title="Estado: Demora (Movimiento Corto) | Duración: 5m 12s"></div>
+                                <div class="tl-segment c-op" style="width: 23.8%;" title="Estado: Operativo | Duración: 2h 51m 7s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.6%;" title="Estado: Demora (Movimiento Corto) | Duración: 4m 12s"></div>
+                                <div class="tl-segment c-op" style="width: 9.7%;" title="Estado: Operativo | Duración: 1h 9m 33s"></div>
+                                <div class="tl-segment c-prog" style="width: 11.1%;" title="Estado: En Progreso | Duración: 1h 19m 46s"></div>
+                            </div>
+                        </div>
+
+                        <div class="tl-machine-row">
+                            <div class="tl-machine-info">
+                                <div class="tl-machine-id">PL002</div>
+                                <div class="tl-machine-class">Pala CAT 7495</div>
+                            </div>
+                            <div class="tl-bar">
+                                <div class="tl-segment c-op" style="width: 1.5%;" title="Estado: Operativo | Duración: 11m 1s"></div>
+                                <div class="tl-segment c-dem" style="width: 4.4%;" title="Estado: Demora (Cambio Turno) | Duración: 31m 40s"></div>
+                                <div class="tl-segment c-op" style="width: 26.0%;" title="Estado: Operativo | Duración: 3h 7m 4s"></div>
+                                <div class="tl-segment c-dem" style="width: 4.6%;" title="Estado: Demora (Disparo) | Duración: 33m 4s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.7%;" title="Estado: Demora (Mov Cables) | Duración: 4m 43s"></div>
+                                <div class="tl-segment c-dem" style="width: 1.2%;" title="Estado: Demora (Traslado Frente) | Duración: 8m 52s"></div>
+                                <div class="tl-segment c-op" style="width: 2.7%;" title="Estado: Operativo | Duración: 19m 19s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.6%;" title="Estado: Demora (Cambio Operador) | Duración: 4m 40s"></div>
+                                <div class="tl-segment c-op" style="width: 47.2%;" title="Estado: Operativo | Duración: 5h 39m 30s"></div>
+                                <div class="tl-segment c-prog" style="width: 11.1%;" title="Estado: En Progreso | Duración: 1h 19m 46s"></div>
+                            </div>
+                        </div>
+
+                        <div class="tl-machine-row">
+                            <div class="tl-machine-info">
+                                <div class="tl-machine-id">PL003</div>
+                                <div class="tl-machine-class">Pala CAT 7495</div>
+                            </div>
+                            <div class="tl-bar">
+                                <div class="tl-segment c-dem" style="width: 6.7%;" title="Estado: Demora (Cambio Turno) | Duración: 48m 15s"></div>
+                                <div class="tl-segment c-op" style="width: 44.0%;" title="Estado: Operativo | Duración: 5h 16m 36s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.7%;" title="Estado: Demora (Cambio Operador) | Duración: 4m 45s"></div>
+                                <div class="tl-segment c-op" style="width: 15.9%;" title="Estado: Operativo | Duración: 1h 54m 36s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.6%;" title="Estado: Demora (Movimiento Corto) | Duración: 4m 18s"></div>
+                                <div class="tl-segment c-op" style="width: 5.1%;" title="Estado: Operativo | Duración: 36m 33s"></div>
+                                <div class="tl-segment c-dem" style="width: 0.8%;" title="Estado: Demora (Cambio Operador) | Duración: 5m 31s"></div>
+                                <div class="tl-segment c-op" style="width: 15.2%;" title="Estado: Operativo | Duración: 1h 49m 34s"></div>
+                                <div class="tl-segment c-prog" style="width: 11.1%;" title="Estado: En Progreso | Duración: 1h 19m 46s"></div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; justify-content: space-between; margin-left: calc(130px + 1.5rem); margin-top: 8px; font-size: 0.7rem; color: var(--text-muted); font-weight: 500; position: relative;">
+                            <span>07:30</span>
+                            <span>09:30</span>
+                            <span>11:30</span>
+                            <span>13:30</span>
+                            <span>15:30</span>
+                            <span>17:30</span>
+                            <span>19:30</span>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Variables de colores
+        const style = getComputedStyle(document.body);
+        const colBlue = style.getPropertyValue('--color-blue').trim();     
+        const colYellow = style.getPropertyValue('--color-yellow').trim(); 
+        const colRed = style.getPropertyValue('--color-red').trim();       
+        const colGreen = style.getPropertyValue('--color-green').trim();   
+        const colGrayD = style.getPropertyValue('--color-gray-dark').trim();
+        
+        // Colores estandarizados de estados
+        const cOperativo = '#42DE2F';
+        const cDemora = '#CCCC00';
+        const cReserva = '#0099CC';
+        const cMantenimiento = '#FF0000';
+
+        // Plomo estandarizado
+        const trackColorLight = '#CBD5E1'; 
+        const trackColorDark = '#334155';
+
+        // --- 1. GRÁFICO: Producción por hora ---
+        const ctxProd = document.getElementById('prodChart').getContext('2d');
+        const prodChartInstance = new Chart(ctxProd, {
+            type: 'bar',
+            data: {
+                labels: ['07:30', '08:30', '09:30', '10:30', '11:30', '12:30', '13:30', '14:30', '15:30', '16:30', '17:30', '18:30'],
+                datasets: [
+                    { label: 'CM127', data: [5.2, 7.4, 8.9, 4.1, 6.8, 2.5, 6.0, 9.5, 7.8, 5.5, 4.8, 2.1], backgroundColor: colBlue },
+                    { label: 'CM106', data: [9.8, 12.1, 14.5, 8.2, 11.5, 4.1, 10.5, 13.8, 11.2, 9.4, 8.1, 3.5], backgroundColor: '#1E4A84' }, 
+                    { label: 'CM116', data: [14.5, 16.2, 19.8, 12.4, 15.9, 5.8, 15.2, 18.7, 15.6, 13.9, 12.0, 4.9], backgroundColor: '#3A6BAE' },
+                    { label: 'SH001', data: [6.1, 8.5, 10.2, 5.5, 7.4, 3.0, 7.1, 11.0, 8.2, 6.0, 5.2, 2.8], backgroundColor: colYellow },
+                    { label: 'SH002', data: [11.2, 13.4, 15.6, 10.1, 12.8, 5.2, 11.8, 16.2, 12.9, 10.5, 9.3, 4.0], backgroundColor: '#FFCA4D' }, 
+                    { label: 'SH003', data: [15.8, 17.1, 20.4, 14.2, 18.2, 7.5, 16.9, 21.5, 18.0, 15.1, 13.8, 6.2], backgroundColor: trackColorLight }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { 
+                    legend: { 
+                        position: 'bottom', 
+                        labels: { 
+                            useBorderRadius: true,
+                            borderRadius: 4,
+                            boxWidth: 14,
+                            boxHeight: 14,
+                            font: {family: 'Inter'} 
+                        } 
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return context[0].label;
+                            },
+                            label: function(context) {
+                                return [
+                                    context.dataset.label,
+                                    'Total Movido: ' + context.raw + ' t',
+                                    'Payload Promedio: 368.68 t'
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: { 
+                    x: { stacked: true, grid: { display: false } }, 
+                    y: { stacked: true, title: { display: true, text: 'TONELADAS' }, grid: { color: '#E2E8F0', borderDash: [4,4] } } 
+                }
+            }
+        });
+
+        // --- 2. GRÁFICO: Línea de Tiempo de Camiones ---
+        const ctxTum = document.getElementById('tumChart').getContext('2d');
+        const tumChartInstance = new Chart(ctxTum, {
+            type: 'bar',
+            data: {
+                labels: ['07:30', '08:30', '09:30', '10:30', '11:30', '12:30', '13:30', '14:30', '15:30', '16:30', '17:30', '18:30'],
+                datasets: [
+                    { label: 'Operativo', data: [28.0, 26.5, 20.0, 32.0, 18.0, 29.0, 24.0, 15.0, 28.0, 21.0, 19.0, 12.0], backgroundColor: cOperativo },
+                    { label: 'Demora', data: [8.0, 9.5, 12.0, 4.0, 10.0, 6.0, 8.0, 18.0, 5.0, 11.0, 13.0, 20.0], backgroundColor: cDemora },
+                    { label: 'Reserva', data: [7.0, 6.0, 8.5, 3.0, 12.0, 5.0, 7.0, 9.0, 4.0, 8.0, 9.0, 15.0], backgroundColor: cReserva },
+                    { label: 'Mantenimiento', data: [4.0, 3.5, 5.0, 2.0, 8.0, 2.0, 4.0, 10.0, 3.0, 5.0, 7.0, 12.0], backgroundColor: cMantenimiento }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { 
+                    legend: { display: false } 
+                },
+                scales: { 
+                    x: { stacked: true, grid: { display: false } }, 
+                    y: { stacked: true, title: { display: true, text: '#Camiones' }, grid: { color: '#E2E8F0', borderDash: [4,4] } } 
+                }
+            }
+        });
+
+        // --- 3. GRÁFICO: Ciclo de Pala ---
+        const ctxCycle = document.getElementById('cycleChart').getContext('2d');
+        const cycleChartInstance = new Chart(ctxCycle, {
+            type: 'doughnut',
+            data: {
+                labels: ['Loading 47.59% (1.94h)', 'WaitForSpot 15.17% (0.62h)', 'Hang.Time 37.24% (1.52h)'],
+                datasets: [{
+                    data: [47.59, 15.17, 37.24],
+                    backgroundColor: [colGreen, colYellow, colGrayD],
+                    borderWidth: 0,
+                    cutout: '65%'
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { 
+                        position: 'right', 
+                        labels: { 
+                            useBorderRadius: true,
+                            borderRadius: 4,
+                            boxWidth: 14,
+                            boxHeight: 14,
+                            font: {family: 'Inter', size: 11} 
+                        } 
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                return context[0].label.split(' ')[0];
+                            },
+                            label: function(context) {
+                                const name = context.label.split(' ')[0];
+                                let time = '';
+                                if(name === 'Loading') time = '1.94h';
+                                if(name === 'WaitForSpot') time = '0.62h';
+                                if(name === 'Hang.Time') time = '1.52h';
+                                return [
+                                    'Porcentaje: ' + context.raw + '%',
+                                    'Tiempo promedio: ' + time
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // --- 4. FUNCIÓN GAUGE ---
+        function createGauge(canvasId, value, max, colorFill) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const remainder = max - value;
+            
+            return new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    datasets: [{
+                        data: [value, remainder], 
+                        backgroundColor: [colorFill, trackColorLight], 
+                        borderWidth: 0,
+                        cutout: '80%',
+                        circumference: 180,
+                        rotation: 270
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    layout: { padding: { bottom: -20 } }
+                }
+            });
+        }
+
+        const gaugeHangInstance = createGauge('gaugeHang', 1.52, 5, colYellow);
+        const gaugeQueueInstance = createGauge('gaugeQueue', 0.62, 5, colBlue);
+        const gaugeProdInstance = createGauge('gaugeProd', 9585.07, 10000, colGreen);
+
+        // --- FUNCIONALIDAD DARK / LIGHT MODE ---
+        const themeToggleBtn = document.getElementById('theme-toggle');
+        
+        themeToggleBtn.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            
+            if (isDarkMode) {
+                themeToggleBtn.innerHTML = '<i class="fa-solid fa-toggle-on"></i><span>Dark Mode</span>';
+            } else {
+                themeToggleBtn.innerHTML = '<i class="fa-solid fa-toggle-off"></i><span>Light Mode</span>';
+            }
+
+            const textColor = isDarkMode ? '#FFFFFF' : '#64748B';
+            const gridColor = isDarkMode ? '#2A2A2A' : '#D1D5DB';
+            const trackColor = isDarkMode ? trackColorDark : trackColorLight; 
+
+            Chart.defaults.color = textColor;
+            
+            [prodChartInstance, tumChartInstance].forEach(chart => {
+                if (chart.options.scales.y) {
+                    chart.options.scales.y.grid.color = gridColor;
+                }
+                chart.update();
+            });
+            
+            gaugeHangInstance.data.datasets[0].backgroundColor[1] = trackColor;
+            gaugeQueueInstance.data.datasets[0].backgroundColor[1] = trackColor;
+            gaugeProdInstance.data.datasets[0].backgroundColor[1] = trackColor;
+
+            cycleChartInstance.update();
+            gaugeHangInstance.update();
+            gaugeQueueInstance.update();
+            gaugeProdInstance.update();
+        });
+
+    </script>
+</body>
+</html>
