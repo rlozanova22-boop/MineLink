@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minelink | Insights Operacionales Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        /* PALETA CORPORATIVA PREMIUM ESTRICTA */
+        :root {
+            --color-blue: #002A5C;       
+            --color-yellow: #FFB300;     
+            --color-red: #D22630;        
+            --color-green: #10B981;      
+            --color-gray-dark: #475569;
+            --color-gray-light: #94A3B8;
+            
+            --bg-body: #E5E7EB;          
+            --bg-sidebar: #F3F4F6;       
+            --text-main: #1F2937;
+            --text-muted: #64748B;
+            --border-color: #D1D5DB;
+            
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+            --radar-target-border: #FFB300; 
+            --radar-target-fill: rgba(255, 179, 0, 0.4); 
+            --radar-real-border: #002A5C; 
+            --radar-real-fill: rgba(0, 42, 92, 0.4); 
+            
+            --estado-operativo: #10B981; 
+            --estado-mantenimiento: #D22630; 
+        }
+
+        body.dark-mode {
+            --bg-body: #050505;        
+            --bg-sidebar: #121212;     
+            --text-main: #FFFFFF;      
+            --text-muted: #94A3B8;     
+            --border-color: #2A2A2A;   
+            --color-blue: #FFB300; 
+            
+            --radar-real-border: #3A82F6; 
+            --radar-real-fill: rgba(58, 130, 246, 0.35);  
+            --radar-target-border: #FFB300; 
+            --radar-target-fill: rgba(255, 179, 0, 0.35);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        
+        body { background-color: var(--bg-body); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; transition: background-color 0.3s, color 0.3s; }
+
+        .sidebar { width: 80px; background: var(--bg-sidebar); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; align-items: center; padding: 1rem 0; z-index: 20; transition: background-color 0.3s, border-color 0.3s; }
+        .logo { width: 40px; height: 40px; background: var(--color-yellow); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #1F2937; margin-bottom: 2rem; font-size: 1.2rem; }
+        .nav-items { display: flex; flex-direction: column; gap: 1rem; width: 100%; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted); text-decoration: none; padding: 0.5rem 0; font-size: 0.7rem; font-weight: 500; gap: 6px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.2s; text-align: center;}
+        .nav-item i { font-size: 1.2rem; }
+        .nav-item:hover { color: var(--color-blue); }
+        .nav-item.active { color: var(--text-main); border-left-color: var(--color-yellow); background: linear-gradient(90deg, rgba(255,179,0,0.15) 0%, rgba(255,255,255,0) 100%); }
+        .sidebar-bottom { margin-top: auto; padding-bottom: 1rem; }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+        
+        header { background: var(--bg-sidebar); border-bottom: 1px solid var(--border-color); height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; flex-shrink: 0; transition: background-color 0.3s, border-color 0.3s; }
+        .header-left { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 1.1rem; }
+        .header-left i { color: var(--text-muted); margin-right: 5px; }
+        .header-left span { color: var(--text-muted); font-weight: 400; font-size: 1rem; }
+        .header-right { display: flex; align-items: center; gap: 20px; }
+        .user-info { display: flex; align-items: center; gap: 10px; text-align: right; }
+        .user-name { font-weight: 600; font-size: 0.85rem; line-height: 1.2; }
+        .user-email { font-size: 0.75rem; color: var(--text-muted); }
+        .avatar { width: 36px; height: 36px; background: var(--color-yellow); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #1F2937; }
+
+        .dashboard-scroll { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1.5rem; min-height: 0; }
+        
+        .page-header { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 0.5rem; flex-shrink: 0; }
+        .section-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 0; }
+        
+        .global-filters { display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap; background: var(--bg-sidebar); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); box-shadow: var(--shadow-md); transition: background-color 0.3s, border-color 0.3s;}
+        .filter-group { display: flex; align-items: center; gap: 0.6rem; flex: 1; min-width: 150px;}
+        .filter-group label { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+        .filter-select, .form-control { width: 100%; padding: 0.5rem 1rem; border: 1px solid var(--border-color); border-radius: 6px; font-size: 0.85rem; background-color: var(--bg-body); color: var(--text-main); transition: all 0.2s; outline: none; font-weight: 500; }
+        .filter-select:focus, .form-control:focus { border-color: var(--color-blue); }
+        .input-icon-wrapper { position: relative; width: 100%; }
+        .input-icon-wrapper i { position: absolute; right: 12px; top: 10px; color: var(--text-muted); font-size: 0.85rem;}
+
+        .top-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; flex-shrink: 0; }
+        
+        .card { background: var(--bg-sidebar); border: 1px solid var(--border-color); border-top: 4px solid var(--color-yellow); border-radius: 8px; padding: 1.5rem; box-shadow: var(--shadow-md); display: flex; flex-direction: column; transition: background-color 0.3s, border-color 0.3s; min-height: 350px; }
+        
+        .card-header-flex { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+        .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text-main); text-transform: uppercase; display: flex; align-items: center; gap: 8px; margin: 0;}
+        .card-title-highlight { color: var(--color-blue); margin-left: 5px; font-weight: 700; }
+        
+        .btn-toggle-sort { background: var(--bg-body); border: 1px solid var(--border-color); color: var(--text-main); padding: 6px 12px; border-radius: 4px; font-size: 0.75rem; cursor: pointer; font-weight: 600; transition: all 0.2s; display: flex; gap: 6px; align-items: center;}
+        .btn-toggle-sort:hover { border-color: var(--color-blue); color: var(--color-blue); }
+
+        .chart-container { flex: 1; position: relative; min-height: 250px; width: 100%; display: flex; justify-content: center; align-items: center;}
+
+        /* TABLA Y ACORDEÓN */
+        .table-card { padding: 0; overflow: visible; min-height: auto; flex-shrink: 0; margin-bottom: 2rem;}
+        .table-wrapper { width: 100%; overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; padding-top: 5px; padding-bottom: 20px;}
+        table { width: 100%; border-collapse: collapse; text-align: center; min-width: 950px; font-size: 0.85rem;}
+        
+        th { background: var(--bg-body); padding: 1rem; color: var(--text-muted); font-weight: 700; border-bottom: 1px solid var(--border-color); border-top: 1px solid var(--border-color); text-transform: uppercase; font-size: 0.75rem; transition: background-color 0.3s, border-color 0.3s; position: relative;}
+        th i { cursor: help; color: var(--color-blue); font-size: 0.85rem; }
+        
+        td { padding: 0.8rem 1rem; border-bottom: 1px solid var(--border-color); color: var(--text-main); font-weight: 600; vertical-align: middle; transition: background-color 0.2s; }
+        .td-left { text-align: left; }
+        
+        .row-group-header { background-color: var(--bg-body); color: var(--color-blue); font-weight: 700; font-size: 0.8rem; text-transform: uppercase; text-align: left; cursor: pointer; transition: background-color 0.2s; border-bottom: 2px solid var(--border-color); }
+        .row-group-header:hover { background-color: var(--border-color); }
+        .group-header-content { display: flex; align-items: center; justify-content: space-between; }
+        .group-icon { transition: transform 0.3s ease; }
+        .group-icon.rotated { transform: rotate(-90deg); }
+        
+        .hidden-row { display: none !important; }
+        
+        tbody tr:not(.row-group-header) { transition: background-color 0.2s ease; }
+        tbody tr:not(.row-group-header):hover td { background-color: rgba(255, 179, 0, 0.1) !important; } 
+
+        .status-good { border-left: 4px solid var(--estado-operativo) !important; }
+        .status-bad { border-left: 4px solid var(--estado-mantenimiento) !important; }
+        .status-warning { border-left: 4px solid var(--color-yellow) !important; }
+
+        .chart-cell { display: flex; align-items: center; justify-content: center; gap: 6px; flex-direction: column;}
+        .chart-canvas-container { width: 140px; height: 55px; position: relative; margin: 0 auto; } 
+        
+        .val-badge { font-size: 0.95rem; font-weight: 700; display: flex; align-items: baseline; gap: 3px; }
+        .val-badge small { font-size: 0.65rem; color: var(--text-muted); font-weight: 600; }
+        .text-success { color: var(--estado-operativo); }
+        .text-danger { color: var(--estado-mantenimiento); }
+
+        /* TOOLTIPS INFORMATIVOS ('i') */
+        .info-tooltip { position: relative; cursor: help; color: var(--color-blue); margin-left: 6px; display: inline-block; font-size: 0.9rem; }
+        .info-tooltip::after { content: attr(data-title); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%); background-color: var(--color-blue); color: #fff; padding: 8px 12px; border-radius: 6px; font-size: 0.75rem; white-space: normal; width: max-content; max-width: 250px; opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 9999; pointer-events: none; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.15); font-weight: 500; text-transform: none; line-height: 1.4; }
+        .info-tooltip::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--color-blue); opacity: 0; visibility: hidden; transition: all 0.2s ease; z-index: 9999; pointer-events: none; }
+        .info-tooltip:hover::after, .info-tooltip:hover::before { opacity: 1; visibility: visible; }
+        th:last-child .info-tooltip::after { left: auto; right: -10px; transform: translateX(0); }
+        th:last-child .info-tooltip::before { left: auto; right: 2px; transform: translateX(0); }
+
+        /* TOOLTIP FLOTANTE EXTERNO PARA CHART.JS */
+        #chartjs-custom-tooltip {
+            opacity: 0;
+            position: absolute;
+            background: rgba(0, 42, 92, 0.95);
+            color: white;
+            border-radius: 6px;
+            pointer-events: none;
+            transition: opacity 0.1s ease;
+            z-index: 99999;
+            padding: 6px 10px;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.75rem;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+            white-space: nowrap;
+        }
+
+        body.dark-mode .nav-item:hover { color: var(--text-main); }
+        body.dark-mode .form-control, body.dark-mode .filter-select { background-color: #1A1A1A; border-color: var(--border-color); }
+        body.dark-mode th i { color: var(--color-yellow); }
+        body.dark-mode tbody tr:not(.row-group-header):hover td { background-color: rgba(255, 179, 0, 0.15) !important; } 
+        body.dark-mode .row-group-header { background-color: #1A1A1A; color: var(--color-yellow); border-bottom: 2px solid var(--border-color); }
+        body.dark-mode .row-group-header:hover { background-color: #2A2A2A; }
+        body.dark-mode .info-tooltip { color: var(--color-yellow); }
+        body.dark-mode .info-tooltip::after { background-color: var(--color-yellow); color: #1A1A1A; font-weight: 600; }
+        body.dark-mode .info-tooltip::before { border-top-color: var(--color-yellow); }
+        body.dark-mode .card-title-highlight { color: var(--color-yellow); }
+        body.dark-mode #chartjs-custom-tooltip { background: rgba(255, 179, 0, 0.95); color: #1A1A1A; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <nav class="sidebar">
+        <div class="logo">M</div>
+        <div class="nav-items">
+            <a class="nav-item active"><i class="fa-solid fa-chart-line"></i>Insights</a>
+            <a class="nav-item"><i class="fa-regular fa-compass"></i>Tiempo Real</a>
+            <a class="nav-item"><i class="fa-solid fa-cube"></i>Modelos 3D</a>
+            <a class="nav-item"><i class="fa-solid fa-wrench"></i>Herramientas</a>
+        </div>
+        <div class="sidebar-bottom">
+            <div class="nav-item" id="theme-toggle"><i class="fa-solid fa-toggle-off"></i><span>Light Mode</span></div>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <header>
+            <div class="header-left">
+                <i class="fa-solid fa-bars"></i>
+                MineLink <span>| Insights Operacionales</span>
+            </div>
+            <div class="header-right">
+                <i class="fa-regular fa-bell" style="font-size: 1.2rem; color: var(--text-muted);"></i>
+                <div class="user-info">
+                    <div>
+                        <div class="user-name">J. Valencia</div>
+                        <div class="user-email">jvalencia@mina.com</div>
+                    </div>
+                    <div class="avatar"><i class="fa-solid fa-user"></i></div>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-scroll">
+            
+            <div class="page-header">
+                <h1 class="section-title">Insights Operativos: Evaluación de Desempeño</h1>
+                
+                <div class="global-filters">
+                    <div class="filter-group" style="flex: 2;">
+                        <label>Buscar</label>
+                        <div class="input-icon-wrapper">
+                            <input type="text" id="filter-search" class="form-control" placeholder="Ej. Equipo u Operador..." onkeyup="aplicarFiltros()">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </div>
+                    </div>
+
+                    <div class="filter-group">
+                        <label>Flota</label>
+                        <select id="filter-flota" class="filter-select" onchange="actualizarFiltroEquipos(); aplicarFiltros()">
+                            <option value="todas">Todas</option>
+                            <option value="CAT 777F">CAT 777F</option>
+                            <option value="CAT 777G">CAT 777G</option>
+                            <option value="CAT 797F">CAT 797F</option>
+                            <option value="CAT 798 AC">CAT 798 AC</option>
+                            <option value="Komatsu 980">Komatsu 980</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>Equipo</label>
+                        <select id="filter-equipo" class="filter-select" onchange="actualizarFiltroOperadores(); aplicarFiltros()">
+                            <option value="todos">Todos</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Operador</label>
+                        <select id="filter-operador" class="filter-select" onchange="aplicarFiltros()">
+                            <option value="todos">Todos</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="top-grid">
+                
+                <div class="card">
+                    <div class="card-header-flex">
+                        <div class="card-title">
+                            Ranking de Desempeño: Chancadora (Top 10)
+                            <i class="fa-solid fa-circle-info info-tooltip" data-title="Muestra el desfase entre el Desempeño Real del operador y el Valor Esperado. Seleccione una barra para detallar."></i>
+                        </div>
+                        <button id="btn-toggle-sort" class="btn-toggle-sort" onclick="toggleSort()">
+                            <i class="fa-solid fa-arrow-down-short-wide"></i> Ver Menor Rendimiento
+                        </button>
+                    </div>
+                    <div class="chart-container" style="cursor: pointer;">
+                        <canvas id="divergingBarChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header-flex">
+                        <div class="card-title">
+                            Detalle de Rankings por Ubicación: <span id="radar-op-name" class="card-title-highlight">Seleccione Operador</span>
+                            <i class="fa-solid fa-circle-info info-tooltip" data-title="Compara el Desempeño Real (Área Azul) con el Valor Esperado (Área Amarilla) calculado estadísticamente."></i>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="radarChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card table-card">
+                <div class="card-title" style="padding: 1.5rem 1.5rem 0 1.5rem;">Tendencia Histórica por Flota</div>
+                <div class="table-wrapper">
+                    <table id="okrTable">
+                        <thead>
+                            <tr>
+                                <th class="td-left">Operador-Máquina</th>
+                                <th>
+                                    Llegada Chancadora
+                                    <i class="fa-solid fa-circle-info info-tooltip" data-title="Desfase (km/h) del operador vs el Valor Esperado en el circuito de Chancadora."></i>
+                                </th>
+                                <th>
+                                    Carga Pala 1
+                                    <i class="fa-solid fa-circle-info info-tooltip" data-title="Rendimiento del operador durante las maniobras en el sector Pala 1."></i>
+                                </th>
+                                <th>
+                                    Carga Pala 2
+                                    <i class="fa-solid fa-circle-info info-tooltip" data-title="Rendimiento del operador durante las maniobras en el sector Pala 2."></i>
+                                </th>
+                                <th>
+                                    Carga Pala 3
+                                    <i class="fa-solid fa-circle-info info-tooltip" data-title="Rendimiento del operador durante las maniobras en el sector Pala 3."></i>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+    
+    <div id="chartjs-custom-tooltip"></div>
+
+    <script>
+        const getCSSVar = (name) => getComputedStyle(document.body).getPropertyValue(name).trim();
+        
+        let mostrarMejores = true; 
+        let datosOrdenadosGlobal = []; 
+        let selectedBarIndex = 0; 
+
+        function applyOpacity(hex, opacity = 0.3) {
+            hex = hex.replace('#', '');
+            if (hex.length === 3) {
+                hex = hex[0]+hex[0]+hex[1]+hex[1]+hex[2]+hex[2];
+            }
+            let r = parseInt(hex.substring(0, 2), 16);
+            let g = parseInt(hex.substring(2, 4), 16);
+            let b = parseInt(hex.substring(4, 6), 16);
+            return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+        }
+
+        // ==========================================
+        // BASE DE DATOS SIMULADA
+        // ==========================================
+        const flotasRequeridas = [
+            { nombre: "CAT 777F", cantidad: 5, prefijo: "777" },
+            { nombre: "CAT 777G", cantidad: 3, prefijo: "777" },
+            { nombre: "CAT 797F", cantidad: 29, prefijo: "797" },
+            { nombre: "CAT 798 AC", cantidad: 9, prefijo: "798" },
+            { nombre: "Komatsu 980", cantidad: 11, prefijo: "980" }
+        ];
+
+        const dbOperadores = [];
+        let contadorID = 1;
+
+        const generarDeltas = () => Array.from({length: 12}, () => parseFloat((Math.random() * 7 - 3.5).toFixed(1)));
+
+        flotasRequeridas.forEach(flotaReq => {
+            for(let i = 1; i <= flotaReq.cantidad; i++) {
+                let codEquipo = `CM${flotaReq.prefijo}${i.toString().padStart(2, '0')}`;
+                
+                let baseRadar = 50 + Math.random() * 45;
+                let radar = [
+                    baseRadar, 
+                    baseRadar - (Math.random()*15), 
+                    baseRadar + (Math.random()*10), 
+                    baseRadar - (Math.random()*12)
+                ];
+
+                dbOperadores.push({
+                    id: `OP${contadorID}`,
+                    operador: `Operador ${contadorID}`,
+                    codEquipo: codEquipo,
+                    flota: flotaReq.nombre,
+                    displayEquipo: `${codEquipo} - ${flotaReq.nombre}`,
+                    radar: radar.map(v => Math.min(100, Math.max(0, v))), 
+                    spark1: generarDeltas(),
+                    spark2: generarDeltas(),
+                    spark3: generarDeltas(),
+                    spark4: generarDeltas()
+                });
+                contadorID++;
+            }
+        });
+
+        // ==========================================
+        // VARIABLES CHART.JS
+        // ==========================================
+        let mainDivergingChart, radarChart;
+        let lineChartInstances = [];
+
+        function initCharts() {
+            let textColor = getCSSVar('--text-main') || '#1F2937';
+            let gridColor = getCSSVar('--border-color') || '#D1D5DB';
+            
+            const colorRealBorder = getCSSVar('--radar-real-border');
+            const colorRealFill = getCSSVar('--radar-real-fill');
+            const colorTargetBorder = getCSSVar('--radar-target-border');
+            const colorTargetFill = getCSSVar('--radar-target-fill');
+
+            Chart.defaults.color = textColor;
+            Chart.defaults.font.family = "'Inter', sans-serif";
+
+            // Gráfico Divergente (Ranking)
+            const ctxDiverging = document.getElementById('divergingBarChart').getContext('2d');
+            mainDivergingChart = new Chart(ctxDiverging, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ data: [], backgroundColor: [], hoverBackgroundColor: [], borderRadius: 4, barThickness: 16 }] },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    onClick: (e, activeElements) => {
+                        if (activeElements.length > 0) {
+                            selectedBarIndex = activeElements[0].index;
+                            const opSeleccionado = datosOrdenadosGlobal[selectedBarIndex].rawData;
+                            pintarBarrasSeleccionadas();
+                            actualizarRadarEspecifico(opSeleccionado);
+                        }
+                    },
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    },
+                    plugins: { 
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (c) => ` Delta: ${c.raw > 0 ? '+' : ''}${c.raw} km/h (Clic para ver detalle)` } }
+                    },
+                    scales: {
+                        x: { grid: { color: gridColor }, title: { display: true, text: 'Variación vs. Valor Esperado (km/h)', color: textColor, font: {size: 10} } },
+                        y: { grid: { display: false }, ticks: { font: { weight: '600' }, color: textColor } }
+                    }
+                }
+            });
+
+            // Gráfico de Radar
+            const ctxRadar = document.getElementById('radarChart').getContext('2d');
+            radarChart = new Chart(ctxRadar, {
+                type: 'radar',
+                data: {
+                    labels: ['Llegada Chancadora', 'Carga Pala 1', 'Carga Pala 2', 'Carga Pala 3'],
+                    datasets: [
+                        { 
+                            label: 'Desempeño Real', 
+                            data: [], 
+                            borderColor: colorRealBorder, 
+                            backgroundColor: colorRealFill, 
+                            borderWidth: 2, 
+                            pointRadius: 4,
+                            pointBackgroundColor: colorRealBorder,
+                            fill: true,
+                            tension: 0,
+                            order: 1
+                        },
+                        { 
+                            label: 'Valor Esperado', 
+                            data: [60,60,60,60], 
+                            borderColor: colorTargetBorder, 
+                            backgroundColor: colorTargetFill, 
+                            borderWidth: 2, 
+                            pointRadius: 4, // Añadimos radio para que el hover lo detecte bien
+                            pointBackgroundColor: colorTargetBorder,
+                            fill: true,
+                            tension: 0,
+                            order: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    // SOLUCIÓN TOOLTIP: Comportamiento nativo de radar (detecta el punto exacto)
+                    interaction: { mode: 'nearest', intersect: true }, 
+                    plugins: { 
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: {size: 12, weight: '600'}, color: textColor } },
+                        tooltip: { callbacks: { label: (c) => ` ${c.dataset.label}: ${c.raw}%` } }
+                    },
+                    scales: { 
+                        r: { 
+                            angleLines: { color: gridColor }, 
+                            grid: { color: gridColor }, 
+                            pointLabels: { font: { size: 10, weight: '700' }, color: textColor }, 
+                            ticks: { display: false, min: 0, max: 100 } 
+                        } 
+                    }
+                }
+            });
+        }
+
+        const horasEvaluacion = ['07:30', '08:30', '09:30', '10:30', '11:30', '12:30', '13:30', '14:30', '15:30', '16:30', '17:30', '18:30'];
+
+        const externalTooltipHandler = (context) => {
+            const {chart, tooltip} = context;
+            const tooltipEl = document.getElementById('chartjs-custom-tooltip');
+
+            if (tooltip.opacity === 0) {
+                tooltipEl.style.opacity = 0;
+                return;
+            }
+
+            if (tooltip.body) {
+                const titleLines = tooltip.title || [];
+                const bodyLines = tooltip.body.map(b => b.lines);
+
+                let innerHtml = '<div style="margin-bottom: 4px; font-weight: 700;">' + titleLines[0] + '</div>';
+                bodyLines.forEach((body, i) => {
+                    innerHtml += '<div>' + body + '</div>';
+                });
+                tooltipEl.innerHTML = innerHtml;
+            }
+
+            const position = chart.canvas.getBoundingClientRect();
+            tooltipEl.style.left = position.left + window.scrollX + tooltip.caretX + 15 + 'px';
+            tooltipEl.style.top = position.top + window.scrollY + tooltip.caretY - 20 + 'px';
+            tooltipEl.style.opacity = 1;
+        };
+
+        function createSparkline(canvasId, dataArray) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            
+            const colorPos = getCSSVar('--estado-operativo') || '#10B981';
+            const colorNeg = getCSSVar('--estado-mantenimiento') || '#D22630';
+            const bgColors = dataArray.map(val => val >= 0 ? colorPos : colorNeg);
+
+            const chart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: { labels: horasEvaluacion, datasets: [{ data: dataArray, backgroundColor: bgColors, borderRadius: 2 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { display: false }, 
+                        tooltip: { 
+                            enabled: false, 
+                            external: externalTooltipHandler, 
+                            callbacks: { 
+                                title: (ctx) => horasEvaluacion[ctx[0].dataIndex], 
+                                label: (c) => `Desfase: ${c.raw > 0 ? '+' : ''}${c.raw} km/h` 
+                            } 
+                        } 
+                    },
+                    scales: { x: { display: false }, y: { display: false, min: -5, max: 5 } },
+                    layout: { padding: 0 },
+                    animation: false 
+                }
+            });
+            lineChartInstances.push(chart);
+        }
+
+        // ==========================================
+        // LÓGICA DE FILTROS Y RENDERIZADO
+        // ==========================================
+        function toggleSort() {
+            mostrarMejores = !mostrarMejores;
+            const btn = document.getElementById('btn-toggle-sort');
+            if(mostrarMejores) {
+                btn.innerHTML = '<i class="fa-solid fa-arrow-down-short-wide"></i> Ver Menor Rendimiento';
+            } else {
+                btn.innerHTML = '<i class="fa-solid fa-arrow-up-wide-short"></i> Ver Mayor Rendimiento';
+            }
+            aplicarFiltros();
+        }
+
+        window.toggleFleet = function(flotaNombre, iconId) {
+            const flotaId = flotaNombre.replace(/\s+/g, '-');
+            const rows = document.querySelectorAll(`.row-fleet-${flotaId}`);
+            const icon = document.getElementById(iconId);
+            
+            let isHidden = false;
+            rows.forEach(row => {
+                row.classList.toggle('hidden-row');
+                if(row.classList.contains('hidden-row')) isHidden = true;
+            });
+            
+            if (isHidden) {
+                icon.classList.add('rotated');
+            } else {
+                icon.classList.remove('rotated');
+            }
+        };
+
+        function actualizarFiltroEquipos() {
+            const flotaSel = document.getElementById('filter-flota').value;
+            const selectEq = document.getElementById('filter-equipo');
+            selectEq.innerHTML = '<option value="todos">Todos</option>';
+            let equipos = new Set();
+            dbOperadores.forEach(op => { if (flotaSel === 'todas' || op.flota === flotaSel) equipos.add(op.displayEquipo); });
+            [...equipos].sort().forEach(eq => { selectEq.innerHTML += `<option value="${eq}">${eq}</option>`; });
+            actualizarFiltroOperadores();
+        }
+
+        function actualizarFiltroOperadores() {
+            const flotaSel = document.getElementById('filter-flota').value;
+            const equipoSel = document.getElementById('filter-equipo').value;
+            const selectOp = document.getElementById('filter-operador');
+            selectOp.innerHTML = '<option value="todos">Todos</option>';
+            let operadores = new Set();
+            dbOperadores.forEach(op => { 
+                if ((flotaSel === 'todas' || op.flota === flotaSel) && (equipoSel === 'todos' || op.displayEquipo === equipoSel)) {
+                    operadores.add(op.operador);
+                }
+            });
+            [...operadores].sort().forEach(ope => { selectOp.innerHTML += `<option value="${ope}">${ope}</option>`; });
+        }
+
+        function aplicarFiltros() {
+            const text = document.getElementById('filter-search').value.toLowerCase();
+            const flota = document.getElementById('filter-flota').value;
+            const equipo = document.getElementById('filter-equipo').value;
+            const operador = document.getElementById('filter-operador').value;
+
+            const datosFiltrados = dbOperadores.filter(op => {
+                return (op.operador.toLowerCase().includes(text) || op.displayEquipo.toLowerCase().includes(text)) &&
+                       (flota === 'todas' || op.flota === flota) &&
+                       (equipo === 'todos' || op.displayEquipo === equipo) &&
+                       (operador === 'todos' || op.operador === operador);
+            });
+
+            actualizarGraficos(datosFiltrados);
+            actualizarTabla(datosFiltrados);
+        }
+
+        function pintarBarrasSeleccionadas() {
+            const colorPos = getCSSVar('--estado-operativo') || '#10B981';
+            const colorNeg = getCSSVar('--estado-mantenimiento') || '#D22630';
+
+            const bgColors = datosOrdenadosGlobal.map((d, index) => {
+                let baseColor = d.delta >= 0 ? colorPos : colorNeg;
+                if (index !== selectedBarIndex) {
+                    return applyOpacity(baseColor, 0.3);
+                }
+                return baseColor; 
+            });
+            
+            const hoverColors = datosOrdenadosGlobal.map(d => d.delta >= 0 ? colorPos : colorNeg);
+
+            mainDivergingChart.data.datasets[0].backgroundColor = bgColors;
+            mainDivergingChart.data.datasets[0].hoverBackgroundColor = hoverColors;
+            mainDivergingChart.update();
+        }
+
+        function actualizarRadarEspecifico(op) {
+            document.getElementById('radar-op-name').textContent = op.operador;
+            radarChart.data.datasets[0].data = op.radar.map(v => Math.round(v));
+            radarChart.update();
+        }
+
+        function actualizarGraficos(datos) {
+            selectedBarIndex = 0; 
+
+            datosOrdenadosGlobal = [...datos].map(d => ({
+                label: `${d.operador} (${d.codEquipo})`,
+                delta: d.spark1[d.spark1.length - 1],
+                rawData: d 
+            })).sort((a, b) => mostrarMejores ? b.delta - a.delta : a.delta - b.delta).slice(0, 10);
+
+            mainDivergingChart.data.labels = datosOrdenadosGlobal.map(d => d.label);
+            mainDivergingChart.data.datasets[0].data = datosOrdenadosGlobal.map(d => d.delta);
+            
+            pintarBarrasSeleccionadas();
+
+            if (datosOrdenadosGlobal.length > 0) {
+                actualizarRadarEspecifico(datosOrdenadosGlobal[0].rawData);
+            } else {
+                document.getElementById('radar-op-name').textContent = "Sin Datos";
+                radarChart.data.datasets[0].data = [];
+                radarChart.update();
+            }
+        }
+
+        function actualizarTabla(datos) {
+            const tbody = document.querySelector('#okrTable tbody');
+            tbody.innerHTML = ''; 
+            lineChartInstances.forEach(c => c.destroy());
+            lineChartInstances = [];
+
+            if(datos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="padding: 2rem;">No hay datos para estos filtros.</td></tr>';
+                return;
+            }
+
+            let datosAgrupados = [...datos].sort((a, b) => {
+                if (a.flota < b.flota) return -1;
+                if (a.flota > b.flota) return 1;
+                return b.spark1[b.spark1.length-1] - a.spark1[a.spark1.length-1];
+            });
+
+            let currentFlota = "";
+
+            datosAgrupados.forEach((d, i) => {
+                if (d.flota !== currentFlota) {
+                    currentFlota = d.flota;
+                    const flotaClassSegura = currentFlota.replace(/\s+/g, '-');
+                    
+                    const trGroup = document.createElement('tr');
+                    trGroup.className = 'row-group-header';
+                    
+                    const flotaToToggle = currentFlota;
+                    trGroup.onclick = () => toggleFleet(flotaToToggle, `icon-${flotaClassSegura}`);
+                    trGroup.innerHTML = `
+                        <td colspan="5">
+                            <div class="group-header-content">
+                                <span>${currentFlota}</span>
+                                <i id="icon-${flotaClassSegura}" class="fa-solid fa-chevron-down group-icon rotated"></i>
+                            </div>
+                        </td>`;
+                    tbody.appendChild(trGroup);
+                }
+
+                const flotaClassSeguraFila = d.flota.replace(/\s+/g, '-');
+                const tr = document.createElement('tr');
+                tr.className = `row-fleet-${flotaClassSeguraFila} hidden-row`;
+                
+                const u1 = d.spark1[d.spark1.length-1]; const u2 = d.spark2[d.spark2.length-1];
+                const u3 = d.spark3[d.spark3.length-1]; const u4 = d.spark4[d.spark4.length-1];
+
+                let statusClass = u1 >= 1.5 ? 'status-good' : (u1 < 0 ? 'status-bad' : 'status-warning');
+
+                const renderCell = (val, id) => `
+                    <div class="chart-cell">
+                        <span class="val-badge ${val >= 0 ? 'text-success' : 'text-danger'}">${val >= 0 ? '+' : ''}${val.toFixed(1)} <small>km/h</small></span>
+                        <div class="chart-canvas-container"><canvas id="${id}"></canvas></div>
+                    </div>`;
+
+                tr.innerHTML = `
+                    <td class="td-left ${statusClass}">
+                        <strong>${d.operador}</strong><br>
+                        <small style="color:var(--text-muted);">${d.displayEquipo}</small>
+                    </td>
+                    <td>${renderCell(u1, `sp1_${i}`)}</td>
+                    <td>${renderCell(u2, `sp2_${i}`)}</td>
+                    <td>${renderCell(u3, `sp3_${i}`)}</td>
+                    <td>${renderCell(u4, `sp4_${i}`)}</td>
+                `;
+                tbody.appendChild(tr);
+
+                setTimeout(() => {
+                    createSparkline(`sp1_${i}`, d.spark1);
+                    createSparkline(`sp2_${i}`, d.spark2); 
+                    createSparkline(`sp3_${i}`, d.spark3);
+                    createSparkline(`sp4_${i}`, d.spark4);
+                }, 10);
+            });
+            
+            const filtroFlota = document.getElementById('filter-flota').value;
+            if (filtroFlota !== 'todas') {
+                 toggleFleet(filtroFlota, `icon-${filtroFlota.replace(/\s+/g, '-')}`);
+            }
+        }
+
+        // Dark Mode Toggle 
+        document.getElementById('theme-toggle').addEventListener('click', function() {
+            document.body.classList.toggle('dark-mode');
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            
+            if (isDarkMode) {
+                this.innerHTML = '<i class="fa-solid fa-toggle-on"></i><span>Dark Mode</span>';
+            } else {
+                this.innerHTML = '<i class="fa-solid fa-toggle-off"></i><span>Light Mode</span>';
+            }
+            
+            let textColor = getCSSVar('--text-main') || (isDarkMode ? '#FFFFFF' : '#1F2937');
+            let gridColor = getCSSVar('--border-color') || (isDarkMode ? '#2A2A2A' : '#D1D5DB');
+            
+            const colorRealBorder = getCSSVar('--radar-real-border');
+            const colorRealFill = getCSSVar('--radar-real-fill');
+            const colorTargetBorder = getCSSVar('--radar-target-border');
+            const colorTargetFill = getCSSVar('--radar-target-fill');
+            
+            Chart.defaults.color = textColor;
+            
+            mainDivergingChart.options.scales.x.grid.color = gridColor;
+            mainDivergingChart.options.scales.x.title.color = textColor;
+            mainDivergingChart.options.scales.y.ticks.color = textColor;
+            mainDivergingChart.update();
+            
+            radarChart.options.scales.r.angleLines.color = gridColor;
+            radarChart.options.scales.r.grid.color = gridColor;
+            radarChart.options.scales.r.pointLabels.color = textColor;
+            radarChart.options.plugins.legend.labels.color = textColor;
+            
+            radarChart.data.datasets[0].borderColor = colorRealBorder;
+            radarChart.data.datasets[0].pointBackgroundColor = colorRealBorder;
+            radarChart.data.datasets[0].backgroundColor = colorRealFill;
+            
+            radarChart.data.datasets[1].borderColor = colorTargetBorder;
+            radarChart.data.datasets[1].pointBackgroundColor = colorTargetBorder;
+            radarChart.data.datasets[1].backgroundColor = colorTargetFill;
+            radarChart.update();
+        });
+
+        // Ocultar el tooltip flotante externo al hacer scroll en la tabla
+        document.querySelector('.dashboard-scroll').addEventListener('scroll', () => {
+            document.getElementById('chartjs-custom-tooltip').style.opacity = 0;
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            actualizarFiltroEquipos(); 
+            aplicarFiltros(); 
+        });
+    </script>
+</body>
+</html>
